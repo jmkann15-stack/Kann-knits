@@ -46,7 +46,7 @@ const UNDO_LIMIT = 60
 export function DesignEditorScreen() {
   const { id = '' } = useParams()
   const q = useLiveQuery(async () => ({ d: await db.designs.get(id) }), [id])
-  if (!q) return <div className="h-dvh bg-cream" />
+  if (!q) return <div className="fixed inset-0 bg-cream" />
   if (!q.d) return <Navigate to="/designs" replace />
   return <Editor key={q.d.id} initial={q.d} />
 }
@@ -563,10 +563,10 @@ function Editor({ initial }: { initial: Design }) {
   )
 
   return (
-    <div className="flex h-dvh flex-col bg-cream select-none">
+    <div className="fixed inset-0 flex flex-col bg-cream select-none">
       {/* Top bar */}
       <header className="pt-safe border-b border-line bg-cream">
-        <div className="flex min-h-16 items-center gap-1 px-2">
+        <div className="flex min-h-16 items-center gap-1 px-2 pt-3">
           <button
             onClick={() => {
               persist()

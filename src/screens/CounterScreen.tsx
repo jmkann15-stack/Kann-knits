@@ -183,7 +183,7 @@ export function CounterScreen() {
   return (
     <div className="pt-safe pb-safe fixed inset-0 flex flex-col bg-cream select-none">
       {/* Top bar */}
-      <div className="flex items-center gap-1 px-3 pt-2">
+      <div className="flex items-center gap-1 px-3 pt-4">
         <button
           onClick={goBack}
           aria-label="Back to project"
