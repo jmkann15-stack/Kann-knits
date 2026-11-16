@@ -12,7 +12,7 @@ import {
   saveProject,
   setPatternFile,
 } from '../lib/projects'
-import { Choice, Field, PageHeader, SaveBar, inputClass, useGoBack } from '../components/ui'
+import { Choice, DateInput, Field, PageHeader, SaveBar, inputClass, useGoBack } from '../components/ui'
 import { FileImage } from '../components/FileImage'
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -324,22 +324,12 @@ export function ProjectFormScreen() {
         </Section>
 
         <Section title="Dates">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
             <Field label="Started">
-              <input
-                type="date"
-                className={inputClass}
-                value={form.startDate ?? ''}
-                onChange={(e) => set('startDate', e.target.value || undefined)}
-              />
+              <DateInput value={form.startDate ?? ''} onChange={(v) => set('startDate', v || undefined)} />
             </Field>
             <Field label="Finished">
-              <input
-                type="date"
-                className={inputClass}
-                value={form.finishDate ?? ''}
-                onChange={(e) => set('finishDate', e.target.value || undefined)}
-              />
+              <DateInput value={form.finishDate ?? ''} onChange={(v) => set('finishDate', v || undefined)} />
             </Field>
           </div>
         </Section>

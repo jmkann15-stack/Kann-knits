@@ -243,8 +243,9 @@ function Editor({ initial }: { initial: Design }) {
         const fit = fitScale()
         const colsFit = (w - 2 * MARGIN) / cols
         const rowsFit = (h - 2 * MARGIN) / rows
-        // Small designs fit the screen; big ones start at a size you can tap.
-        const s = fit >= 10 ? Math.min(fit, 40) : Math.min(22, Math.max(10, colsFit, rowsFit))
+        // Show the whole design when its squares are still a usable size; only
+        // really big ones (long belts, huge charts) start zoomed in.
+        const s = fit >= 6 ? Math.min(fit, 40) : Math.min(22, Math.max(10, colsFit, rowsFit))
         view.current = clampView({ s, tx: MARGIN, ty: MARGIN })
       } else {
         view.current = clampView(view.current)

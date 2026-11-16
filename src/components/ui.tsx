@@ -131,11 +131,33 @@ export const inputClass =
 
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
-    <label className="block">
+    <label className="block min-w-0">
       <span className="mb-1.5 block px-1 font-semibold text-ink">{label}</span>
       {children}
       {hint && <span className="mt-1 block px-1 text-sm text-ink-soft">{hint}</span>}
     </label>
+  )
+}
+
+/**
+ * A date box that stays inside its column on iPhone (Safari gives date inputs a
+ * wide built-in minimum) and says "Tap to pick" instead of showing nothing.
+ */
+export function DateInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="relative min-w-0">
+      <input
+        type="date"
+        className={`${inputClass} date-input appearance-none ${value ? '' : 'text-transparent'}`}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {!value && (
+        <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-lg text-ink-soft/60">
+          Tap to pick
+        </span>
+      )}
+    </div>
   )
 }
 

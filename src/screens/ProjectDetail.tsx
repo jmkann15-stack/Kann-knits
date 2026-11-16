@@ -13,7 +13,7 @@ import {
   today,
 } from '../lib/projects'
 import { useObjectUrl } from '../lib/device'
-import { Button, InfoCard, InfoRow as Row, PageHeader, ProgressBar, Sheet, inputClass } from '../components/ui'
+import { Button, DateInput, InfoCard, InfoRow as Row, PageHeader, ProgressBar, Sheet } from '../components/ui'
 import { FileImage } from '../components/FileImage'
 import { CounterIcon, GridIcon, PlusIcon, YarnBallArt } from '../components/Icons'
 import { DesignThumb } from './Designs'
@@ -53,12 +53,7 @@ function PhotoViewer({ project, file, onClose }: { project: Project; file: Store
       <FileImage fileId={file.id} full className="w-full rounded-2xl" />
       <label className="mt-4 block">
         <span className="mb-1.5 block px-1 font-semibold">Date</span>
-        <input
-          type="date"
-          className={inputClass}
-          value={file.date}
-          onChange={(e) => e.target.value && db.files.update(file.id, { date: e.target.value })}
-        />
+        <DateInput value={file.date} onChange={(v) => v && db.files.update(file.id, { date: v })} />
       </label>
       <div className="mt-4 flex gap-3">
         <Button
