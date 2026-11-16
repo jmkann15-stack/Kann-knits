@@ -1,0 +1,11 @@
+// Cloudflare Workers config: serve the built app as static files.
+// "single-page-application" sends every unknown path to index.html so deep links work.
+// public/_headers (copied into dist) still controls caching for sw.js and the manifest.
+{
+  "name": "kann-knits",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
