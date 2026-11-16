@@ -8,12 +8,20 @@ import {
   addReminder,
   bump,
   deleteCounter,
+  describeRepeat,
   dismissReminder,
+  isRepeating,
   nextReminder,
+  reminderLandsOn,
   removeReminder,
   renameCounter,
+  repeatFinished,
+  repeatPosition,
   resetCounter,
   setCount,
+  setRepeatRows,
+  timesDone,
+  type ReminderHit,
 } from '../lib/counters'
 import { haptic, useWakeLock } from '../lib/device'
 import { Button, Field, Sheet, inputClass, useGoBack } from '../components/ui'
@@ -48,72 +56,186 @@ function NameForm({ initial, submitLabel, onSubmit }: { initial: string; submitL
   )
 }
 
-function RemindersSheet({ counter, onClose }: { counter: Counter; onClose: () => void }) {
+/** "40, 46, 52 … 82" */
+const previewRows = (first: number, every: number, times: number) => {
+  const rows = Array.from({ length: Math.min(times, 4) }, (_, i) => first + i * every)
+  return times > 4 ? `${rows.slice(0, 3).join(', ')} … ${first + every * (times - 1)}` : rows.join(', ')
+}
+
+const toInt = (v: string) => {
+  const n = Math.floor(Number(v))
+  return v.trim() !== '' && Number.isFinite(n) ? n : NaN
+}
+
+/** "Decrease (3 of 8)" — the reminder's words plus which time this is. */
+const hitLabel = (h: ReminderHit) => (h.n ? `${h.reminder.message} (${h.of ? `${h.n} of ${h.of}` : `#${h.n}`})` : h.reminder.message)
+
+function RemindersSheet({ counter, count, onClose }: { counter: Counter; count: number; onClose: () => void }) {
   const [row, setRow] = useState('')
   const [msg, setMsg] = useState('')
-  const n = Math.floor(Number(row))
-  const valid = Number.isFinite(n) && n > 0 && msg.trim()
+  const [repeats, setRepeats] = useState(false)
+  const [every, setEvery] = useState('')
+  const [times, setTimes] = useState('')
+  const n = toInt(row)
+  const e = toInt(every)
+  const t = toInt(times)
+  const valid = n > 0 && !!msg.trim() && (!repeats || (e > 0 && (times.trim() === '' || t > 0)))
+  const lastRow = repeats && e > 0 && t > 0 && n > 0
+
   return (
     <Sheet open title={`Reminders · ${counter.name}`} onClose={onClose}>
-      <p className="mb-4 text-lg text-ink-soft">A banner pops up when you reach the row, like “at row 40, start the decrease.”</p>
+      <p className="mb-4 text-lg text-ink-soft">
+        A banner pops up on the row, like “at row 40, start the neck” or “decrease every 6th row, 8 times.”
+      </p>
       {counter.reminders.length > 0 && (
         <ul className="mb-5 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-paper">
-          {counter.reminders.map((r) => (
-            <li key={r.id} className="flex min-h-16 items-center gap-3 pl-4">
-              <span className="w-20 shrink-0 font-serif text-lg font-semibold text-rose-dark">Row {r.atRow}</span>
-              <span className={`flex-1 text-lg ${r.dismissed ? 'text-ink-soft line-through' : ''}`}>{r.message}</span>
-              <button
-                aria-label={`Delete reminder at row ${r.atRow}`}
-                onClick={() => removeReminder(counter.id, r.id)}
-                className="flex h-14 w-14 items-center justify-center text-ink-soft"
-              >
-                <TrashIcon size={22} />
-              </button>
-            </li>
-          ))}
+          {counter.reminders.map((r) => {
+            const rep = isRepeating(r)
+            const done = rep ? repeatFinished(r, count) : r.dismissed
+            return (
+              <li key={r.id} className="flex min-h-16 items-center gap-3 py-2 pl-4">
+                <div className="min-w-0 flex-1">
+                  <span className={`block text-lg leading-snug ${done ? 'text-ink-soft line-through' : ''}`}>{r.message}</span>
+                  <span className="block text-sm text-rose-dark">
+                    {describeRepeat(r)}
+                    {rep && r.times && ` · ${timesDone(r, count)} of ${r.times} done`}
+                  </span>
+                </div>
+                <button
+                  aria-label={`Delete reminder: ${r.message}`}
+                  onClick={() => removeReminder(counter.id, r.id)}
+                  className="flex h-14 w-14 shrink-0 items-center justify-center text-ink-soft"
+                >
+                  <TrashIcon size={22} />
+                </button>
+              </li>
+            )
+          })}
         </ul>
       )}
       <form
         className="space-y-3"
-        onSubmit={async (e) => {
-          e.preventDefault()
+        onSubmit={async (ev) => {
+          ev.preventDefault()
           if (!valid) return
-          await addReminder(counter.id, n, msg.trim())
+          await addReminder(counter.id, n, msg.trim(), repeats ? { every: e, times: t > 0 ? t : undefined } : undefined)
           setRow('')
           setMsg('')
+          setEvery('')
+          setTimes('')
         }}
       >
-        <div className="flex gap-3">
-          <div className="w-28 shrink-0">
-            <Field label="At row">
-              <input
-                className={inputClass}
-                type="number"
-                inputMode="numeric"
-                min={1}
-                value={row}
-                onChange={(e) => setRow(e.target.value)}
-                placeholder="40"
-              />
-            </Field>
-          </div>
-          <div className="min-w-0 flex-1">
-            <Field label="Reminder">
-              <input
-                className={inputClass}
-                value={msg}
-                onChange={(e) => setMsg(e.target.value)}
-                placeholder="Start the decrease"
-                autoCapitalize="sentences"
-              />
-            </Field>
-          </div>
+        <Field label="Reminder">
+          <input
+            className={inputClass}
+            value={msg}
+            onChange={(ev) => setMsg(ev.target.value)}
+            placeholder={repeats ? 'Decrease at each end' : 'Start the decrease'}
+            autoCapitalize="sentences"
+          />
+        </Field>
+        <div className="grid grid-cols-2 gap-2" role="group" aria-label="How often">
+          {[false, true].map((v) => (
+            <button
+              type="button"
+              key={String(v)}
+              aria-pressed={repeats === v}
+              onClick={() => setRepeats(v)}
+              className={`min-h-12 rounded-full border px-3 font-semibold ${
+                repeats === v ? 'border-rose bg-rose text-white' : 'border-line bg-paper text-ink active:bg-oat'
+              }`}
+            >
+              {v ? 'Repeats' : 'Just once'}
+            </button>
+          ))}
         </div>
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2">
+          <Field label={repeats ? 'First row' : 'At row'}>
+            <input
+              className={inputClass}
+              type="number"
+              inputMode="numeric"
+              min={1}
+              value={row}
+              onChange={(ev) => setRow(ev.target.value)}
+              placeholder="40"
+            />
+          </Field>
+          {repeats && (
+            <>
+              <Field label="Every (rows)">
+                <input
+                  className={inputClass}
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  value={every}
+                  onChange={(ev) => setEvery(ev.target.value)}
+                  placeholder="6"
+                  aria-label="Every how many rows"
+                />
+              </Field>
+              <Field label="Times">
+                <input
+                  className={inputClass}
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  value={times}
+                  onChange={(ev) => setTimes(ev.target.value)}
+                  placeholder="8"
+                  aria-label="How many times"
+                />
+              </Field>
+            </>
+          )}
+        </div>
+        {repeats && (
+          <p className="px-1 text-sm text-ink-soft">
+            {lastRow
+              ? `On rows ${previewRows(n, e, t)}.`
+              : 'Leave Times blank to keep repeating, e.g. a cable crossed every 8 rows.'}
+          </p>
+        )}
         <Button type="submit" className="w-full" disabled={!valid}>
           Add reminder
         </Button>
       </form>
     </Sheet>
+  )
+}
+
+/** Pattern repeat length, e.g. a 12-row cable: the counter then shows "row 5 of 12". */
+function RepeatForm({ counter, onSaved }: { counter: Counter; onSaved: () => void }) {
+  const [v, setV] = useState(counter.repeatRows ? String(counter.repeatRows) : '')
+  const n = toInt(v)
+  const changed = (counter.repeatRows ?? 0) !== (n > 1 ? n : 0)
+  return (
+    <form
+      className="flex items-end gap-3"
+      onSubmit={async (e) => {
+        e.preventDefault()
+        await setRepeatRows(counter.id, n > 1 ? n : undefined)
+        onSaved()
+      }}
+    >
+      <div className="min-w-0 flex-1">
+        <Field label="Pattern repeat (rows)" hint="For a 12-row cable or lace repeat, shows “row 5 of 12”. Blank = off.">
+          <input
+            className={inputClass}
+            type="number"
+            inputMode="numeric"
+            min={2}
+            value={v}
+            onChange={(e) => setV(e.target.value)}
+            placeholder="12"
+          />
+        </Field>
+      </div>
+      <Button type="submit" className="mb-7" disabled={!changed || (v.trim() !== '' && !(n > 1))}>
+        Save
+      </Button>
+    </form>
   )
 }
 
@@ -165,6 +287,7 @@ export function CounterScreen() {
   const reminder = activeReminder(counter, shown)
   const upcoming = nextReminder(counter, shown)
   const isMain = counter.id === counters[0]?.id
+  const position = repeatPosition(counter, shown)
   const total = isMain && project.progressMode === 'rows' && project.rowsTotal > 0 ? project.rowsTotal : 0
 
   const change = (delta: number) => {
@@ -173,7 +296,7 @@ export function CounterScreen() {
     if (next === cur) return
     shownRef.current = next
     setPending({ id: counter.id, value: next })
-    const hitsReminder = delta > 0 && counter.reminders.some((r) => !r.dismissed && r.atRow === next)
+    const hitsReminder = delta > 0 && reminderLandsOn(counter, next)
     haptic(hitsReminder ? 60 : 12)
     bump(counter.id, delta).catch(() => setPending(null))
   }
@@ -229,10 +352,10 @@ export function CounterScreen() {
         <div role="alert" className="animate-rise mx-4 mb-2 flex items-center gap-3 rounded-2xl bg-heather p-4 text-white shadow-md">
           <span className="text-2xl">🔔</span>
           <span className="flex-1 text-lg leading-snug">
-            <b>Row {reminder.atRow}:</b> {reminder.message}
+            <b>Row {reminder.row}:</b> {hitLabel(reminder)}
           </span>
           <button
-            onClick={() => dismissReminder(counter.id, reminder.id)}
+            onClick={() => dismissReminder(counter.id, reminder.reminder.id, reminder.row)}
             className="min-h-12 shrink-0 rounded-xl bg-white/20 px-4 font-semibold active:bg-white/30"
           >
             Got it
@@ -250,10 +373,16 @@ export function CounterScreen() {
         <span className="text-lg font-semibold tracking-wide text-white/80 uppercase">{counter.name}</span>
         <span className="font-serif text-[clamp(6rem,32vw,11rem)] leading-none font-semibold tabular-nums">{shown}</span>
         {total > 0 && <span className="text-xl text-white/85">of {total} rows</span>}
+        {position && (
+          <span className="mt-1 text-xl font-semibold text-white/90">
+            Row {position.row} of {position.of} · repeat {position.repeat}
+          </span>
+        )}
         <span className="mt-3 text-lg text-white/75">Tap anywhere to count</span>
         {upcoming && !reminder && (
           <span className="mt-4 rounded-full bg-white/15 px-4 py-1.5 text-base">
-            Next: row {upcoming.atRow} · {upcoming.message}
+            Next: row {upcoming.row}
+            {upcoming.row - shown <= 10 && ` (in ${upcoming.row - shown})`} · {hitLabel(upcoming)}
           </span>
         )}
       </button>
@@ -272,7 +401,7 @@ export function CounterScreen() {
           className="relative min-h-16 rounded-2xl border border-line bg-paper text-base font-semibold text-ink active:bg-oat"
         >
           Reminders
-          {counter.reminders.some((r) => !r.dismissed) && (
+          {counter.reminders.some((r) => (isRepeating(r) ? !repeatFinished(r, shown) : !r.dismissed)) && (
             <span className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-rose" />
           )}
         </button>
@@ -374,6 +503,7 @@ export function CounterScreen() {
                 Set
               </Button>
             </form>
+            <RepeatForm counter={counter} onSaved={() => setSheet(null)} />
             <Button variant="secondary" className="w-full" onClick={() => setRenaming(true)}>
               Rename counter
             </Button>
@@ -395,7 +525,7 @@ export function CounterScreen() {
         )}
       </Sheet>
 
-      {sheet === 'reminders' && <RemindersSheet counter={counter} onClose={() => setSheet(null)} />}
+      {sheet === 'reminders' && <RemindersSheet counter={counter} count={shown} onClose={() => setSheet(null)} />}
     </div>
   )
 }

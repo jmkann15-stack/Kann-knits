@@ -60,9 +60,12 @@ export interface StoredFile {
 
 export interface CounterReminder {
   id: string
-  atRow: number
+  atRow: number // the (first) row it fires on
   message: string
-  dismissed: boolean
+  dismissed: boolean // one-time reminders: tapped "Got it"
+  every?: number // repeating: fires every N rows from atRow…
+  times?: number // …this many times in all (blank = keeps going)
+  dismissedRow?: number // repeating: the row whose banner was last cleared
 }
 
 export interface Counter {
@@ -72,6 +75,7 @@ export interface Counter {
   count: number
   order: number
   reminders: CounterReminder[]
+  repeatRows?: number // pattern repeat length, e.g. a 12-row cable
   updatedAt: number
 }
 
