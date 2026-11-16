@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useCachedLiveQuery } from '../lib/useCached'
 import { db, type Project } from '../db'
 import { JUST_FOR_ME } from '../config'
 import { formatDate } from '../lib/projects'
@@ -50,7 +50,7 @@ export function GalleryScreen() {
   const person = params.get('for') ?? ALL
   const chipsRef = useRef<HTMLDivElement>(null)
 
-  const finished = useLiveQuery(() => db.projects.where('status').equals('finished').toArray(), [])
+  const finished = useCachedLiveQuery('gallery', () => db.projects.where('status').equals('finished').toArray(), [])
   const all = (finished ?? []).sort(
     (a, b) => (b.finishDate ?? '').localeCompare(a.finishDate ?? '') || b.updatedAt - a.updatedAt,
   )
@@ -90,7 +90,9 @@ export function GalleryScreen() {
       ?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }, [person, ready])
 
-  if (finished && all.length === 0) {
+  if (!finished) return <PageHeader title="Made with Love" />
+
+  if (all.length === 0) {
     return (
       <>
         <PageHeader title="Made with Love" />

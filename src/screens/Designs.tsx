@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { useCachedLiveQuery } from '../lib/useCached'
 import { db, type Design } from '../db'
 import { MAX_SIDE, SIZE_PRESETS, blankDesign, createDesign, decodeCells, drawDesign } from '../lib/designs'
 import { formatDate } from '../lib/projects'
@@ -33,7 +34,7 @@ export function DesignThumb({ design, className = '' }: { design: Design; classN
 }
 
 export function DesignsScreen() {
-  const data = useLiveQuery(async () => {
+  const data = useCachedLiveQuery('designs-list', async () => {
     const [designs, projects] = await Promise.all([db.designs.orderBy('updatedAt').reverse().toArray(), db.projects.toArray()])
     return { designs, names: new Map(projects.map((p) => [p.id, p.name])) }
   }, [])
@@ -42,7 +43,7 @@ export function DesignsScreen() {
   return (
     <>
       <PageHeader title="Designs" subtitle="Graph paper for your own patterns" back="/" />
-      {data && designs.length === 0 ? (
+      {!data ? null : designs.length === 0 ? (
         <EmptyState art={<GridIcon size={56} strokeWidth={1.4} />} title="No designs yet">
           Tap <b className="text-rose">+</b> to start on graph paper: a monogram belt, a pillow, a colorwork chart.
         </EmptyState>

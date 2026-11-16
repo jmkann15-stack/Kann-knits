@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { useCachedLiveQuery } from '../lib/useCached'
 import { db, type Project, type StashItem } from '../db'
 import { FIBER_SUGGESTIONS, YARN_WEIGHTS } from '../config'
 import {
@@ -89,7 +90,7 @@ export function StashScreen() {
     setParams(next, { replace: true })
   }
 
-  const data = useLiveQuery(async () => {
+  const data = useCachedLiveQuery('stash-list', async () => {
     const [items, projects] = await Promise.all([db.stash.toArray(), db.projects.toArray()])
     return { items, projects: new Map(projects.map((p) => [p.id, p])) }
   }, [])
@@ -131,7 +132,7 @@ export function StashScreen() {
         subtitle={items.length ? `${items.length} ${items.length === 1 ? 'item' : 'items'}` : undefined}
       />
 
-      {data && items.length === 0 ? (
+      {!data ? null : items.length === 0 ? (
         <EmptyState art={<BasketIcon size={56} strokeWidth={1.4} />} title="Your stash is empty">
           Tap <b className="text-rose">+</b> to add your yarn, thread and canvases, so you always know what you have,
           and what it’s saved for.
@@ -296,7 +297,7 @@ export function StashDetailScreen() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [photoOpen, setPhotoOpen] = useState(false)
 
-  const q = useLiveQuery(async () => {
+  const q = useCachedLiveQuery(`stash:${id}`, async () => {
     const s = await db.stash.get(id)
     if (!s) return { s }
     const [reservedFor, usedIn, photo] = await Promise.all([

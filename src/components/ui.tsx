@@ -42,7 +42,8 @@ export function PageHeader({
           <h1 className="line-clamp-2 text-[1.9rem] leading-tight font-semibold break-words">{title}</h1>
           {subtitle && <p className="text-ink-soft">{subtitle}</p>}
         </div>
-        {action}
+        {/* Negative top margin: a 48px button mustn't make this header taller than the others. */}
+        {action && <div className="-mt-4 shrink-0">{action}</div>}
       </div>
       <div className="stitch-rule mx-5" />
     </header>
@@ -52,7 +53,7 @@ export function PageHeader({
 /** Warm, helpful empty state. */
 export function EmptyState({ art, title, children }: { art: ReactNode; title: string; children?: ReactNode }) {
   return (
-    <div className="animate-rise flex flex-col items-center px-8 pt-14 text-center">
+    <div className="flex flex-col items-center px-8 pt-14 text-center">
       <div className="mb-5 flex h-28 w-28 items-center justify-center rounded-full bg-rose-soft text-rose">{art}</div>
       <h2 className="mb-2 text-2xl font-semibold">{title}</h2>
       <div className="max-w-xs text-lg leading-relaxed text-ink-soft">{children}</div>

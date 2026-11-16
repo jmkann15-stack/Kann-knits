@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useCachedLiveQuery } from '../lib/useCached'
 import { db, type Project, type StoredFile } from '../db'
 import {
   addProjectPhotos,
@@ -87,7 +87,7 @@ function PhotoViewer({ project, file, onClose }: { project: Project; file: Store
 export function ProjectDetailScreen() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
-  const q = useLiveQuery(async () => {
+  const q = useCachedLiveQuery(`project:${id}`, async () => {
     const p = await db.projects.get(id)
     if (!p) return { p }
     const [counters, photos, patternFile, stash, designs] = await Promise.all([

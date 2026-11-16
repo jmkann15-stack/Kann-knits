@@ -1,4 +1,4 @@
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useCachedLiveQuery } from '../lib/useCached'
 import { Link, useSearchParams } from 'react-router-dom'
 import { db, type Counter, type Project, type ProjectStatus } from '../db'
 import { STATUS_LABEL, progressOf } from '../lib/projects'
@@ -18,7 +18,7 @@ const EMPTY_FILTER_TEXT: Record<ProjectStatus, string> = {
 
 /** The photo to show on a card: chosen cover, else the newest progress photo. */
 export function useCoverId(p: Project) {
-  return useLiveQuery(async () => {
+  return useCachedLiveQuery(`cover:${p.id}`, async () => {
     if (p.coverFileId) return p.coverFileId
     const photos = await db.files.where('[ownerType+ownerId]').equals(['project', p.id]).toArray()
     photos.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt)
@@ -73,7 +73,7 @@ export function ProjectsScreen() {
   const [params, setParams] = useSearchParams()
   const filter = (FILTERS.includes(params.get('f') as ProjectStatus) ? params.get('f') : 'in_progress') as ProjectStatus
 
-  const data = useLiveQuery(async () => {
+  const data = useCachedLiveQuery('projects-list', async () => {
     const [projects, counters] = await Promise.all([db.projects.toArray(), db.counters.toArray()])
     const main = new Map<string, Counter>()
     for (const c of counters) {
@@ -113,7 +113,7 @@ export function ProjectsScreen() {
       <InstallBanner />
       <BackupReminder />
 
-      {data && all.length === 0 ? (
+      {!data ? null : all.length === 0 ? (
         <EmptyState art={<YarnIcon size={56} strokeWidth={1.4} />} title="No projects yet">
           Tap <b className="text-rose">+</b> to start your first one. Your patterns, yarn and row counts will all live
           here.
